@@ -145,14 +145,27 @@ fn buildLibVfn(
         "src/nvme/rq.c",
     };
 
-    for (core_sources) |src| {
-        lib.addCSourceFile(.{ .file = upstream.path(src), .flags = &cflags });
-    }
+    lib.addCSourceFiles(.{
+        .root = .{ .dependency = .{
+            .dependency = upstream,
+            .sub_path = "",
+        } },
+        .files = &core_sources,
+        .flags = &cflags,
+    });
 
     // Add architecture-specific sources
     switch (target.result.cpu.arch) {
         .x86_64 => {
-            lib.addCSourceFile(.{ .file = upstream.path("src/support/arch/x86_64/rdtsc.c"), .flags = &cflags });
+            const arch_sources = [_][]const u8{"src/support/arch/x86_64/rdtsc.c"};
+            lib.addCSourceFiles(.{
+                .root = .{ .dependency = .{
+                    .dependency = upstream,
+                    .sub_path = "",
+                } },
+                .files = &arch_sources,
+                .flags = &cflags,
+            });
         },
         .aarch64 => {
             // Add aarch64-specific sources if any
@@ -163,7 +176,15 @@ fn buildLibVfn(
     // Add iommufd.c if HAVE_VFIO_DEVICE_BIND_IOMMUFD is defined
     // TODO: Implement proper detection or option for this
     if (b.option(bool, "have-iommufd", "Include iommufd support") orelse false) {
-        lib.addCSourceFile(.{ .file = upstream.path("src/iommu/iommufd.c"), .flags = &cflags });
+        const iommufd_sources = [_][]const u8{"src/iommu/iommufd.c"};
+        lib.addCSourceFiles(.{
+            .root = .{ .dependency = .{
+                .dependency = upstream,
+                .sub_path = "",
+            } },
+            .files = &iommufd_sources,
+            .flags = &cflags,
+        });
     }
 
     for (include_paths) |ipath| {
