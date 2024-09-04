@@ -3,16 +3,19 @@ const std = @import("std");
 const Build = std.Build;
 const Step = std.Build.Step;
 
-const include_paths = [_][]const u8{
-    "include",
+const include_paths_install = [_][]const u8{
     "include/vfn",
-    "include/vfn/pci",
     "include/vfn/iommu",
+    "include/vfn/nvme",
+    "include/vfn/pci",
     "include/vfn/support",
     "include/vfn/support/arch/arm64",
     "include/vfn/support/arch/x86_64",
-    "include/vfn/nvme",
+    "include/vfn/trace",
     "include/vfn/vfio",
+};
+
+const include_paths = include_paths_install ++ [_][]const u8{
     "src",
     "ccan",
 };
@@ -194,6 +197,10 @@ fn buildLibVfn(
     // Link with threads (unconditionally, as we're guaranteed to be on Linux)
     lib.linkLibC();
     lib.linkSystemLibrary("pthread");
+
+    for (include_paths_install) |ipath| {
+        lib.installHeadersDirectory(upstream.path(ipath), ipath["include/".len..], .{});
+    }
 
     return lib;
 }
