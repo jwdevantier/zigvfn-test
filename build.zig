@@ -21,6 +21,17 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // Check if the target OS is Linux
+    if (target.result.os.tag != .linux) {
+        std.debug.panic("libvfn only supports Linux", .{});
+    }
+
+    // Check if the target architecture is supported
+    switch (target.result.cpu.arch) {
+        .x86_64, .aarch64 => {},
+        else => std.debug.panic("libvfn only supports x86_64 and aarch64 architectures", .{}),
+    }
+
     const shared = b.option(bool, "shared", "Build shared library instead of static") orelse false;
     const enable_debug = b.option(bool, "enable-debug", "Enable debug build") orelse false;
     const enable_profiling = b.option(bool, "enable-profiling", "Enable profiling") orelse false;
@@ -94,6 +105,16 @@ fn buildLibVfn(
         "-Wvla",
         "-Wno-sign-conversion",
         "-fno-strict-overflow",
+        "-include",
+        "stddef.h",
+        "-include",
+        "stdint.h",
+        "-include",
+        "stdbool.h",
+        "-include",
+        "unistd.h",
+        "-include",
+        "pthread.h",
     };
 
     if (enable_debug) {
@@ -128,9 +149,15 @@ fn buildLibVfn(
         lib.addCSourceFile(.{ .file = upstream.path(src), .flags = &cflags });
     }
 
-    // Add x86_64 specific sources if the target is x86_64
-    if (target.result.cpu.arch == .x86_64) {
-        lib.addCSourceFile(.{ .file = upstream.path("src/support/arch/x86_64/rdtsc.c"), .flags = &cflags });
+    // Add architecture-specific sources
+    switch (target.result.cpu.arch) {
+        .x86_64 => {
+            lib.addCSourceFile(.{ .file = upstream.path("src/support/arch/x86_64/rdtsc.c"), .flags = &cflags });
+        },
+        .aarch64 => {
+            // Add aarch64-specific sources if any
+        },
+        else => unreachable,
     }
 
     // Add iommufd.c if HAVE_VFIO_DEVICE_BIND_IOMMUFD is defined
@@ -143,11 +170,9 @@ fn buildLibVfn(
         lib.addIncludePath(upstream.path(ipath));
     }
 
-    // Link with threads
+    // Link with threads (unconditionally, as we're guaranteed to be on Linux)
     lib.linkLibC();
-    if (target.result.os.tag == .linux) {
-        lib.linkSystemLibrary("pthread");
-    }
+    lib.linkSystemLibrary("pthread");
 
     return lib;
 }
