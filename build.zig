@@ -108,16 +108,6 @@ fn buildLibVfn(
         "-Wvla",
         "-Wno-sign-conversion",
         "-fno-strict-overflow",
-        "-include",
-        "stddef.h",
-        "-include",
-        "stdint.h",
-        "-include",
-        "stdbool.h",
-        "-include",
-        "unistd.h",
-        "-include",
-        "pthread.h",
     };
 
     if (enable_debug) {
@@ -149,10 +139,7 @@ fn buildLibVfn(
     };
 
     lib.addCSourceFiles(.{
-        .root = .{ .dependency = .{
-            .dependency = upstream,
-            .sub_path = "",
-        } },
+        .root = upstream.path(""),
         .files = &core_sources,
         .flags = &cflags,
     });
@@ -190,8 +177,11 @@ fn buildLibVfn(
         });
     }
 
+    lib.addSystemIncludePath(upstream.path("include/"));
     for (include_paths) |ipath| {
-        lib.addIncludePath(upstream.path(ipath));
+        const path = upstream.path(ipath);
+        lib.addIncludePath(path);
+        lib.addSystemIncludePath(path);
     }
 
     // Link with threads (unconditionally, as we're guaranteed to be on Linux)
