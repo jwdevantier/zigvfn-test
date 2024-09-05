@@ -108,6 +108,8 @@ fn buildLibVfn(
         "-Wvla",
         "-Wno-sign-conversion",
         "-fno-strict-overflow",
+        "-include",
+        "sys-deps.h",
     };
 
     if (enable_debug) {
@@ -228,6 +230,10 @@ fn buildLibVfn(
     lib.addConfigHeader(config_h);
 
     buildTraceFiles(b, upstream, lib, &cflags);
+
+    var writer = b.addWriteFiles();
+    _ = writer.add("sys-deps.h", @embedFile("sys-deps.h"));
+    lib.addIncludePath(writer.getDirectory());
 
     return lib;
 }
