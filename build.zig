@@ -192,6 +192,7 @@ fn buildLibVfn(
         lib.installHeadersDirectory(upstream.path(ipath), ipath["include/".len..], .{});
     }
 
+    // zig uses a recent copy of clang, so we support all this stuff
     const config_h = b.addConfigHeader(.{
         // various ccan files use '#include "config.h"'
         // don't know if I can scope this better.
@@ -226,12 +227,12 @@ fn buildLibVfn(
 
     lib.addConfigHeader(config_h);
 
-    buildTraceFiles(b, upstream, lib);
+    buildTraceFiles(b, upstream, lib, &cflags);
 
     return lib;
 }
 
-fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile) void {
+fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile, cflags: []const []const u8) void {
     // Trace Files
     //
     // TODO: Generate from config file
@@ -240,7 +241,11 @@ fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile) v
     // perl scripts/trace.pl --mode source ./config/trace-events-all >> ./src/trace/events.c
     // perl scripts/trace.pl --mode header ./config/trace-events-all >> ./include/vfn/trace/events.h
 
-    const events_c = b.addWriteFiles().add("src/trace/events.c",
+    _ = upstream;
+
+    var writer = b.addWriteFiles();
+
+    const events_c = writer.add("src/trace/events.c",
         \\#include <stdbool.h>
         \\
         \\#include "vfn/trace/events.h"
@@ -277,7 +282,7 @@ fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile) v
         \\int TRACE_NUM_EVENTS = 12;
     );
 
-    _ = b.addWriteFiles().add("include/vfn/trace/events.h",
+    _ = writer.add("vfn/trace/events.h",
         \\#define TRACE_NVME_CQ_GET_CQE "nvme_cq_get_cqe"
         \\#define TRACE_NVME_CQ_GOT_CQE "nvme_cq_got_cqe"
         \\#define TRACE_NVME_CQ_SPIN "nvme_cq_spin"
@@ -319,16 +324,9 @@ fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile) v
     );
 
     // Add the generated C file to the library
-    //lib.addCSourceFile(.{ .file = events_c, .flags = &.{} });
-    lib.addCSourceFile(.{ .file = events_c, .flags = &.{} }); // TODO: I don't think it's OK to drop all flags
+    lib.addCSourceFile(.{ .file = events_c, .flags = cflags });
 
-    // Ensure the include paths for the generated headers are added
-    //lib.addIncludePath(.{ .path = b.getInstallPath(.header, "") });
-    lib.addIncludePath(b.path(""));
-    //lib.addIncludePath(.{ .path = upstream.path("include").getPath(b) });
-    lib.addIncludePath(upstream.path("include"));
-
-    // Add the directory containing the generated header to the include paths
-    //lib.addIncludePath(.{ .path = events_h.getDirectory().getPath(b) });
-    lib.addIncludePath(b.path("include/"));
+    // make generated events.h file available for inclusion
+    lib.addIncludePath(writer.getDirectory());
+    lib.addSystemIncludePath(writer.getDirectory());
 }
