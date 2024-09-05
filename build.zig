@@ -277,7 +277,7 @@ fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile) v
         \\int TRACE_NUM_EVENTS = 12;
     );
 
-    const events_h = b.addWriteFiles().add("include/vfn/trace/events.h",
+    _ = b.addWriteFiles().add("include/vfn/trace/events.h",
         \\#define TRACE_NVME_CQ_GET_CQE "nvme_cq_get_cqe"
         \\#define TRACE_NVME_CQ_GOT_CQE "nvme_cq_got_cqe"
         \\#define TRACE_NVME_CQ_SPIN "nvme_cq_spin"
@@ -319,12 +319,16 @@ fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile) v
     );
 
     // Add the generated C file to the library
-    lib.addCSourceFile(.{ .file = events_c, .flags = &.{} });
+    //lib.addCSourceFile(.{ .file = events_c, .flags = &.{} });
+    lib.addCSourceFile(.{ .file = events_c, .flags = &.{} }); // TODO: I don't think it's OK to drop all flags
 
     // Ensure the include paths for the generated headers are added
-    lib.addIncludePath(.{ .path = b.getInstallPath(.header, "") });
-    lib.addIncludePath(.{ .path = upstream.path("include").getPath(b) });
+    //lib.addIncludePath(.{ .path = b.getInstallPath(.header, "") });
+    lib.addIncludePath(b.path(""));
+    //lib.addIncludePath(.{ .path = upstream.path("include").getPath(b) });
+    lib.addIncludePath(upstream.path("include"));
 
     // Add the directory containing the generated header to the include paths
-    lib.addIncludePath(.{ .path = events_h.getDirectory().getPath(b) });
+    //lib.addIncludePath(.{ .path = events_h.getDirectory().getPath(b) });
+    lib.addIncludePath(b.path("include/"));
 }
