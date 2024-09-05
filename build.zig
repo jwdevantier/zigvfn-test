@@ -1,5 +1,4 @@
 const std = @import("std");
-const buildchecks = @import("buildchecks.zig");
 
 const Build = std.Build;
 const Step = std.Build.Step;
@@ -194,36 +193,138 @@ fn buildLibVfn(
     }
 
     const config_h = b.addConfigHeader(.{
-        .include_path = "ccan/config.h",
+        // various ccan files use '#include "config.h"'
+        // don't know if I can scope this better.
+        .include_path = "config.h",
     }, .{
-        .HAVE_ATTRIBUTE_COLD = buildchecks.hasAttribute(b, "cold"),
-        .HAVE_ATTRIBUTE_CONST = buildchecks.hasAttribute(b, "const"),
-        .HAVE_ATTRIBUTE_DEPRECATED = buildchecks.hasAttribute(b, "deprecated"),
-        .HAVE_ATTRIBUTE_NONNULL = buildchecks.hasAttribute(b, "nonnull"),
-        .HAVE_ATTRIBUTE_NORETURN = buildchecks.hasAttribute(b, "noreturn"),
-        .HAVE_ATTRIBUTE_PRINTF = buildchecks.hasAttribute(b, "format"),
-        .HAVE_ATTRIBUTE_PURE = buildchecks.hasAttribute(b, "pure"),
-        .HAVE_ATTRIBUTE_RETURNS_NONNULL = buildchecks.hasAttribute(b, "returns_nonnull"),
-        .HAVE_ATTRIBUTE_SENTINEL = buildchecks.hasSentinelAttribute(b),
-        .HAVE_ATTRIBUTE_UNUSED = buildchecks.hasAttribute(b, "unused"),
-        .HAVE_ATTRIBUTE_USED = buildchecks.hasAttribute(b, "used"),
-        .HAVE_BUILTIN_CHOOSE_EXPR = buildchecks.hasBuiltin(b, "__builtin_choose_expr"),
-        .HAVE_BUILTIN_CONSTANT_P = buildchecks.hasBuiltin(b, "__builtin_constant_p"),
-        .HAVE_BUILTIN_CPU_SUPPORTS = buildchecks.hasBuiltin(b, "__builtin_cpu_supports"),
-        .HAVE_BUILTIN_EXPECT = buildchecks.hasBuiltin(b, "__builtin_expect"),
-        .HAVE_BUILTIN_TYPES_COMPATIBLE_P = buildchecks.hasBuiltin(b, "__builtin_types_compatible_p"),
-        .HAVE_STRUCT_TIMESPEC = buildchecks.hasType(b, "struct timespec", "#include <time.h>"),
-        .HAVE_CLOCK_GETTIME = buildchecks.hasFunction(b, "clock_gettime", "#include <time.h>"),
-        .HAVE_COMPOUND_LITERALS = buildchecks.hasCompoundLiterals(b),
-        .HAVE_ERR_H = buildchecks.hasHeader(b, "err.h"),
-        .HAVE_ISBLANK = buildchecks.hasFunction(b, "isblank", "#include <ctype.h>"),
-        .HAVE_STATEMENT_EXPR = buildchecks.hasStatementExpr(b),
-        .HAVE_SYS_UNISTD_H = buildchecks.hasHeader(b, "sys/unistd.h"),
-        .HAVE_TYPEOF = buildchecks.hasTypeof(b),
-        .HAVE_WARN_UNUSED_RESULT = buildchecks.hasAttribute(b, "warn_unused_result"),
+        .HAVE_ATTRIBUTE_COLD = true,
+        .HAVE_ATTRIBUTE_CONST = true,
+        .HAVE_ATTRIBUTE_DEPRECATED = true,
+        .HAVE_ATTRIBUTE_NONNULL = true,
+        .HAVE_ATTRIBUTE_NORETURN = true,
+        .HAVE_ATTRIBUTE_PRINTF = true,
+        .HAVE_ATTRIBUTE_PURE = true,
+        .HAVE_ATTRIBUTE_RETURNS_NONNULL = true,
+        .HAVE_ATTRIBUTE_SENTINEL = true,
+        .HAVE_ATTRIBUTE_UNUSED = true,
+        .HAVE_ATTRIBUTE_USED = true,
+        .HAVE_BUILTIN_CHOOSE_EXPR = true,
+        .HAVE_BUILTIN_CONSTANT_P = true,
+        .HAVE_BUILTIN_CPU_SUPPORTS = true,
+        .HAVE_BUILTIN_EXPECT = true,
+        .HAVE_BUILTIN_TYPES_COMPATIBLE_P = true,
+        .HAVE_STRUCT_TIMESPEC = true,
+        .HAVE_CLOCK_GETTIME = true,
+        .HAVE_COMPOUND_LITERALS = true,
+        .HAVE_ERR_H = true,
+        .HAVE_ISBLANK = true,
+        .HAVE_STATEMENT_EXPR = true,
+        .HAVE_SYS_UNISTD_H = true,
+        .HAVE_TYPEOF = true,
+        .HAVE_WARN_UNUSED_RESULT = true,
     });
 
     lib.addConfigHeader(config_h);
 
+    buildTraceFiles(b, upstream, lib);
+
     return lib;
+}
+
+fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile) void {
+    // Trace Files
+    //
+    // TODO: Generate from config file
+    // In the meson project, it defaults to using ./config/trace-events-all as input
+    // and calls:
+    // perl scripts/trace.pl --mode source ./config/trace-events-all >> ./src/trace/events.c
+    // perl scripts/trace.pl --mode header ./config/trace-events-all >> ./include/vfn/trace/events.h
+
+    const events_c = b.addWriteFiles().add("src/trace/events.c",
+        \\#include <stdbool.h>
+        \\
+        \\#include "vfn/trace/events.h"
+        \\#include "trace.h"
+        \\
+        \\bool TRACE_NVME_CQ_GET_CQE_ACTIVE;
+        \\bool TRACE_NVME_CQ_GOT_CQE_ACTIVE;
+        \\bool TRACE_NVME_CQ_SPIN_ACTIVE;
+        \\bool TRACE_NVME_CQ_UPDATE_HEAD_ACTIVE;
+        \\bool TRACE_NVME_SQ_POST_ACTIVE;
+        \\bool TRACE_NVME_SQ_UPDATE_TAIL_ACTIVE;
+        \\bool TRACE_NVME_SKIP_MMIO_ACTIVE;
+        \\bool TRACE_IOMMUFD_IOAS_MAP_DMA_ACTIVE;
+        \\bool TRACE_IOMMUFD_IOAS_UNMAP_DMA_ACTIVE;
+        \\bool TRACE_VFIO_IOMMU_TYPE1_MAP_DMA_ACTIVE;
+        \\bool TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA_ACTIVE;
+        \\bool TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS_ACTIVE;
+        \\
+        \\struct trace_event trace_events[] = {
+        \\    {"nvme_cq_get_cqe", &TRACE_NVME_CQ_GET_CQE_ACTIVE},
+        \\    {"nvme_cq_got_cqe", &TRACE_NVME_CQ_GOT_CQE_ACTIVE},
+        \\    {"nvme_cq_spin", &TRACE_NVME_CQ_SPIN_ACTIVE},
+        \\    {"nvme_cq_update_head", &TRACE_NVME_CQ_UPDATE_HEAD_ACTIVE},
+        \\    {"nvme_sq_post", &TRACE_NVME_SQ_POST_ACTIVE},
+        \\    {"nvme_sq_update_tail", &TRACE_NVME_SQ_UPDATE_TAIL_ACTIVE},
+        \\    {"nvme_skip_mmio", &TRACE_NVME_SKIP_MMIO_ACTIVE},
+        \\    {"iommufd_ioas_map_dma", &TRACE_IOMMUFD_IOAS_MAP_DMA_ACTIVE},
+        \\    {"iommufd_ioas_unmap_dma", &TRACE_IOMMUFD_IOAS_UNMAP_DMA_ACTIVE},
+        \\    {"vfio_iommu_type1_map_dma", &TRACE_VFIO_IOMMU_TYPE1_MAP_DMA_ACTIVE},
+        \\    {"vfio_iommu_type1_unmap_dma", &TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA_ACTIVE},
+        \\    {"vfio_iommu_type1_recycle_ephemeral_iovas", &TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS_ACTIVE},
+        \\};
+        \\
+        \\int TRACE_NUM_EVENTS = 12;
+    );
+
+    const events_h = b.addWriteFiles().add("include/vfn/trace/events.h",
+        \\#define TRACE_NVME_CQ_GET_CQE "nvme_cq_get_cqe"
+        \\#define TRACE_NVME_CQ_GOT_CQE "nvme_cq_got_cqe"
+        \\#define TRACE_NVME_CQ_SPIN "nvme_cq_spin"
+        \\#define TRACE_NVME_CQ_UPDATE_HEAD "nvme_cq_update_head"
+        \\#define TRACE_NVME_SQ_POST "nvme_sq_post"
+        \\#define TRACE_NVME_SQ_UPDATE_TAIL "nvme_sq_update_tail"
+        \\#define TRACE_NVME_SKIP_MMIO "nvme_skip_mmio"
+        \\#define TRACE_IOMMUFD_IOAS_MAP_DMA "iommufd_ioas_map_dma"
+        \\#define TRACE_IOMMUFD_IOAS_UNMAP_DMA "iommufd_ioas_unmap_dma"
+        \\#define TRACE_VFIO_IOMMU_TYPE1_MAP_DMA "vfio_iommu_type1_map_dma"
+        \\#define TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA "vfio_iommu_type1_unmap_dma"
+        \\#define TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS "vfio_iommu_type1_recycle_ephemeral_iovas"
+        \\
+        \\#define TRACE_NVME_CQ_GET_CQE_DISABLED 1
+        \\#define TRACE_NVME_CQ_GOT_CQE_DISABLED 0
+        \\#define TRACE_NVME_CQ_SPIN_DISABLED 0
+        \\#define TRACE_NVME_CQ_UPDATE_HEAD_DISABLED 0
+        \\#define TRACE_NVME_SQ_POST_DISABLED 0
+        \\#define TRACE_NVME_SQ_UPDATE_TAIL_DISABLED 0
+        \\#define TRACE_NVME_SKIP_MMIO_DISABLED 0
+        \\#define TRACE_IOMMUFD_IOAS_MAP_DMA_DISABLED 0
+        \\#define TRACE_IOMMUFD_IOAS_UNMAP_DMA_DISABLED 0
+        \\#define TRACE_VFIO_IOMMU_TYPE1_MAP_DMA_DISABLED 0
+        \\#define TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA_DISABLED 0
+        \\#define TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS_DISABLED 0
+        \\
+        \\extern bool TRACE_NVME_CQ_GET_CQE_ACTIVE;
+        \\extern bool TRACE_NVME_CQ_GOT_CQE_ACTIVE;
+        \\extern bool TRACE_NVME_CQ_SPIN_ACTIVE;
+        \\extern bool TRACE_NVME_CQ_UPDATE_HEAD_ACTIVE;
+        \\extern bool TRACE_NVME_SQ_POST_ACTIVE;
+        \\extern bool TRACE_NVME_SQ_UPDATE_TAIL_ACTIVE;
+        \\extern bool TRACE_NVME_SKIP_MMIO_ACTIVE;
+        \\extern bool TRACE_IOMMUFD_IOAS_MAP_DMA_ACTIVE;
+        \\extern bool TRACE_IOMMUFD_IOAS_UNMAP_DMA_ACTIVE;
+        \\extern bool TRACE_VFIO_IOMMU_TYPE1_MAP_DMA_ACTIVE;
+        \\extern bool TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA_ACTIVE;
+        \\extern bool TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS_ACTIVE;
+    );
+
+    // Add the generated C file to the library
+    lib.addCSourceFile(.{ .file = events_c, .flags = &.{} });
+
+    // Ensure the include paths for the generated headers are added
+    lib.addIncludePath(.{ .path = b.getInstallPath(.header, "") });
+    lib.addIncludePath(.{ .path = upstream.path("include").getPath(b) });
+
+    // Add the directory containing the generated header to the include paths
+    lib.addIncludePath(.{ .path = events_h.getDirectory().getPath(b) });
 }
