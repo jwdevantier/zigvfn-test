@@ -1,4 +1,5 @@
 const std = @import("std");
+const buildchecks = @import("buildchecks.zig");
 
 const Build = std.Build;
 const Step = std.Build.Step;
@@ -191,6 +192,38 @@ fn buildLibVfn(
     for (include_paths_install) |ipath| {
         lib.installHeadersDirectory(upstream.path(ipath), ipath["include/".len..], .{});
     }
+
+    const config_h = b.addConfigHeader(.{
+        .include_path = "ccan/config.h",
+    }, .{
+        .HAVE_ATTRIBUTE_COLD = buildchecks.hasAttribute(b, "cold"),
+        .HAVE_ATTRIBUTE_CONST = buildchecks.hasAttribute(b, "const"),
+        .HAVE_ATTRIBUTE_DEPRECATED = buildchecks.hasAttribute(b, "deprecated"),
+        .HAVE_ATTRIBUTE_NONNULL = buildchecks.hasAttribute(b, "nonnull"),
+        .HAVE_ATTRIBUTE_NORETURN = buildchecks.hasAttribute(b, "noreturn"),
+        .HAVE_ATTRIBUTE_PRINTF = buildchecks.hasAttribute(b, "format"),
+        .HAVE_ATTRIBUTE_PURE = buildchecks.hasAttribute(b, "pure"),
+        .HAVE_ATTRIBUTE_RETURNS_NONNULL = buildchecks.hasAttribute(b, "returns_nonnull"),
+        .HAVE_ATTRIBUTE_SENTINEL = buildchecks.hasSentinelAttribute(b),
+        .HAVE_ATTRIBUTE_UNUSED = buildchecks.hasAttribute(b, "unused"),
+        .HAVE_ATTRIBUTE_USED = buildchecks.hasAttribute(b, "used"),
+        .HAVE_BUILTIN_CHOOSE_EXPR = buildchecks.hasBuiltin(b, "__builtin_choose_expr"),
+        .HAVE_BUILTIN_CONSTANT_P = buildchecks.hasBuiltin(b, "__builtin_constant_p"),
+        .HAVE_BUILTIN_CPU_SUPPORTS = buildchecks.hasBuiltin(b, "__builtin_cpu_supports"),
+        .HAVE_BUILTIN_EXPECT = buildchecks.hasBuiltin(b, "__builtin_expect"),
+        .HAVE_BUILTIN_TYPES_COMPATIBLE_P = buildchecks.hasBuiltin(b, "__builtin_types_compatible_p"),
+        .HAVE_STRUCT_TIMESPEC = buildchecks.hasType(b, "struct timespec", "#include <time.h>"),
+        .HAVE_CLOCK_GETTIME = buildchecks.hasFunction(b, "clock_gettime", "#include <time.h>"),
+        .HAVE_COMPOUND_LITERALS = buildchecks.hasCompoundLiterals(b),
+        .HAVE_ERR_H = buildchecks.hasHeader(b, "err.h"),
+        .HAVE_ISBLANK = buildchecks.hasFunction(b, "isblank", "#include <ctype.h>"),
+        .HAVE_STATEMENT_EXPR = buildchecks.hasStatementExpr(b),
+        .HAVE_SYS_UNISTD_H = buildchecks.hasHeader(b, "sys/unistd.h"),
+        .HAVE_TYPEOF = buildchecks.hasTypeof(b),
+        .HAVE_WARN_UNUSED_RESULT = buildchecks.hasAttribute(b, "warn_unused_result"),
+    });
+
+    lib.addConfigHeader(config_h);
 
     return lib;
 }
