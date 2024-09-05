@@ -165,7 +165,7 @@ fn buildLibVfn(
 
     // Add iommufd.c if HAVE_VFIO_DEVICE_BIND_IOMMUFD is defined
     // TODO: Implement proper detection or option for this
-    if (b.option(bool, "have-iommufd", "Include iommufd support") orelse false) {
+    if (b.option(bool, "have-iommufd", "Include iommufd support") orelse true) {
         const iommufd_sources = [_][]const u8{"src/iommu/iommufd.c"};
         lib.addCSourceFiles(.{
             .root = .{ .dependency = .{
@@ -245,83 +245,8 @@ fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile, c
 
     var writer = b.addWriteFiles();
 
-    const events_c = writer.add("src/trace/events.c",
-        \\#include <stdbool.h>
-        \\
-        \\#include "vfn/trace/events.h"
-        \\#include "trace.h"
-        \\
-        \\bool TRACE_NVME_CQ_GET_CQE_ACTIVE;
-        \\bool TRACE_NVME_CQ_GOT_CQE_ACTIVE;
-        \\bool TRACE_NVME_CQ_SPIN_ACTIVE;
-        \\bool TRACE_NVME_CQ_UPDATE_HEAD_ACTIVE;
-        \\bool TRACE_NVME_SQ_POST_ACTIVE;
-        \\bool TRACE_NVME_SQ_UPDATE_TAIL_ACTIVE;
-        \\bool TRACE_NVME_SKIP_MMIO_ACTIVE;
-        \\bool TRACE_IOMMUFD_IOAS_MAP_DMA_ACTIVE;
-        \\bool TRACE_IOMMUFD_IOAS_UNMAP_DMA_ACTIVE;
-        \\bool TRACE_VFIO_IOMMU_TYPE1_MAP_DMA_ACTIVE;
-        \\bool TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA_ACTIVE;
-        \\bool TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS_ACTIVE;
-        \\
-        \\struct trace_event trace_events[] = {
-        \\    {"nvme_cq_get_cqe", &TRACE_NVME_CQ_GET_CQE_ACTIVE},
-        \\    {"nvme_cq_got_cqe", &TRACE_NVME_CQ_GOT_CQE_ACTIVE},
-        \\    {"nvme_cq_spin", &TRACE_NVME_CQ_SPIN_ACTIVE},
-        \\    {"nvme_cq_update_head", &TRACE_NVME_CQ_UPDATE_HEAD_ACTIVE},
-        \\    {"nvme_sq_post", &TRACE_NVME_SQ_POST_ACTIVE},
-        \\    {"nvme_sq_update_tail", &TRACE_NVME_SQ_UPDATE_TAIL_ACTIVE},
-        \\    {"nvme_skip_mmio", &TRACE_NVME_SKIP_MMIO_ACTIVE},
-        \\    {"iommufd_ioas_map_dma", &TRACE_IOMMUFD_IOAS_MAP_DMA_ACTIVE},
-        \\    {"iommufd_ioas_unmap_dma", &TRACE_IOMMUFD_IOAS_UNMAP_DMA_ACTIVE},
-        \\    {"vfio_iommu_type1_map_dma", &TRACE_VFIO_IOMMU_TYPE1_MAP_DMA_ACTIVE},
-        \\    {"vfio_iommu_type1_unmap_dma", &TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA_ACTIVE},
-        \\    {"vfio_iommu_type1_recycle_ephemeral_iovas", &TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS_ACTIVE},
-        \\};
-        \\
-        \\int TRACE_NUM_EVENTS = 12;
-    );
-
-    _ = writer.add("vfn/trace/events.h",
-        \\#define TRACE_NVME_CQ_GET_CQE "nvme_cq_get_cqe"
-        \\#define TRACE_NVME_CQ_GOT_CQE "nvme_cq_got_cqe"
-        \\#define TRACE_NVME_CQ_SPIN "nvme_cq_spin"
-        \\#define TRACE_NVME_CQ_UPDATE_HEAD "nvme_cq_update_head"
-        \\#define TRACE_NVME_SQ_POST "nvme_sq_post"
-        \\#define TRACE_NVME_SQ_UPDATE_TAIL "nvme_sq_update_tail"
-        \\#define TRACE_NVME_SKIP_MMIO "nvme_skip_mmio"
-        \\#define TRACE_IOMMUFD_IOAS_MAP_DMA "iommufd_ioas_map_dma"
-        \\#define TRACE_IOMMUFD_IOAS_UNMAP_DMA "iommufd_ioas_unmap_dma"
-        \\#define TRACE_VFIO_IOMMU_TYPE1_MAP_DMA "vfio_iommu_type1_map_dma"
-        \\#define TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA "vfio_iommu_type1_unmap_dma"
-        \\#define TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS "vfio_iommu_type1_recycle_ephemeral_iovas"
-        \\
-        \\#define TRACE_NVME_CQ_GET_CQE_DISABLED 1
-        \\#define TRACE_NVME_CQ_GOT_CQE_DISABLED 0
-        \\#define TRACE_NVME_CQ_SPIN_DISABLED 0
-        \\#define TRACE_NVME_CQ_UPDATE_HEAD_DISABLED 0
-        \\#define TRACE_NVME_SQ_POST_DISABLED 0
-        \\#define TRACE_NVME_SQ_UPDATE_TAIL_DISABLED 0
-        \\#define TRACE_NVME_SKIP_MMIO_DISABLED 0
-        \\#define TRACE_IOMMUFD_IOAS_MAP_DMA_DISABLED 0
-        \\#define TRACE_IOMMUFD_IOAS_UNMAP_DMA_DISABLED 0
-        \\#define TRACE_VFIO_IOMMU_TYPE1_MAP_DMA_DISABLED 0
-        \\#define TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA_DISABLED 0
-        \\#define TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS_DISABLED 0
-        \\
-        \\extern bool TRACE_NVME_CQ_GET_CQE_ACTIVE;
-        \\extern bool TRACE_NVME_CQ_GOT_CQE_ACTIVE;
-        \\extern bool TRACE_NVME_CQ_SPIN_ACTIVE;
-        \\extern bool TRACE_NVME_CQ_UPDATE_HEAD_ACTIVE;
-        \\extern bool TRACE_NVME_SQ_POST_ACTIVE;
-        \\extern bool TRACE_NVME_SQ_UPDATE_TAIL_ACTIVE;
-        \\extern bool TRACE_NVME_SKIP_MMIO_ACTIVE;
-        \\extern bool TRACE_IOMMUFD_IOAS_MAP_DMA_ACTIVE;
-        \\extern bool TRACE_IOMMUFD_IOAS_UNMAP_DMA_ACTIVE;
-        \\extern bool TRACE_VFIO_IOMMU_TYPE1_MAP_DMA_ACTIVE;
-        \\extern bool TRACE_VFIO_IOMMU_TYPE1_UNMAP_DMA_ACTIVE;
-        \\extern bool TRACE_VFIO_IOMMU_TYPE1_RECYCLE_EPHEMERAL_IOVAS_ACTIVE;
-    );
+    const events_c = writer.add("src/trace/events.c", @embedFile("trace_events.c"));
+    _ = writer.add("vfn/trace/events.h", @embedFile("trace_events.h"));
 
     // Add the generated C file to the library
     lib.addCSourceFile(.{ .file = events_c, .flags = cflags });
