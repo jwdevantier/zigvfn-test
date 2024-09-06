@@ -117,6 +117,11 @@ fn buildLibVfn(
         CONFIG_HOST,
     };
 
+    buildConfigHostHeader(
+        b,
+        lib,
+    );
+
     if (enable_debug) {
         lib.defineCMacro("DEBUG", null);
     }
@@ -235,11 +240,6 @@ fn buildLibVfn(
     lib.addConfigHeader(config_h);
 
     buildTraceFiles(b, upstream, lib, &cflags);
-    buildConfigHostHeader(
-        target,
-        b,
-        lib,
-    );
 
     var writer = b.addWriteFiles();
     _ = writer.add("sys-deps.h", @embedFile("sys-deps.h"));
@@ -273,16 +273,13 @@ fn cCompileCheck(b: *std.Build, code: []const u8) bool {
     return true;
 }
 
-fn buildConfigHostHeader(tgt: Build.ResolvedTarget, b: *Build, lib: *Step.Compile) void {
+fn buildConfigHostHeader(b: *Build, lib: *Step.Compile) void {
     const opt_aq_size = b.option(u32, "nvme_aq_size", "set admin queue size") orelse 32;
     const hdr = b.addConfigHeader(.{
         .include_path = CONFIG_HOST,
     }, .{
         .NVME_AQ_SIZE = opt_aq_size,
-        .HAVE_VFIO_DEVICE_BIND_IOMMUFD = if (tgt.query.isNative())
-            cCompileCheck(b, @embedFile("chk_vfio_iommufd_support.c"))
-        else
-            (b.option(bool, "use_iommufd", "whether to use IOMMUFD API (Linux 6.4+)") orelse true),
+        .HAVE_VFIO_DEVICE_BIND_IOMMUFD = b.option(bool, "use_iommufd", "whether to use IOMMUFD API (Linux 6.4+)") orelse true,
     });
     lib.addConfigHeader(hdr);
 }
