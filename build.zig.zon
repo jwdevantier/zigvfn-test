@@ -2,18 +2,15 @@
     .name = "zigvfn",
     .version = "0.0.0",
     .minimum_zig_version = "0.13.0",
-
     .dependencies = .{
         .libvfn = .{
-            .url = "https://github.com/SamsungDS/libvfn/archive/7dce643.tar.gz",
-            .hash = "1220fcf996316907b75fa67dfd67b663e6e3956b634eb1157510ba2d3a84adcc1cb9",
+            .url = "git+https://github.com/SamsungDS/libvfn.git#dc3b16726cf6f7a09c7bb4fe5f1679a1ffca2a52",
+            .hash = "12203c137b32f444148352d05768e6dff00ab71882c3a001a6738d1a707c4c0faf5b",
         },
     },
-
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
-				// Anything needed for compile/use and license files
     },
 }
