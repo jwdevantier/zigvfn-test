@@ -3,6 +3,8 @@ const std = @import("std");
 const Build = std.Build;
 const Step = std.Build.Step;
 
+const CONFIG_HOST = "libvfn-config-host.h";
+
 const include_paths_install = [_][]const u8{
     "include/vfn",
     "include/vfn/iommu",
@@ -110,6 +112,9 @@ fn buildLibVfn(
         "-fno-strict-overflow",
         "-include",
         "sys-deps.h",
+        // we generate this later on
+        "-include",
+        CONFIG_HOST,
     };
 
     if (enable_debug) {
@@ -230,6 +235,11 @@ fn buildLibVfn(
     lib.addConfigHeader(config_h);
 
     buildTraceFiles(b, upstream, lib, &cflags);
+    buildConfigHostHeader(
+        target,
+        b,
+        lib,
+    );
 
     var writer = b.addWriteFiles();
     _ = writer.add("sys-deps.h", @embedFile("sys-deps.h"));
@@ -238,8 +248,47 @@ fn buildLibVfn(
     return lib;
 }
 
+fn cCompileCheck(b: *std.Build, code: []const u8) bool {
+    // var writer = b.addWriteFiles();
+    // const prog_c = writer.add("chks/test.c", code);
+    // const exe = b.addExecutable(.{
+    //     .name = "test",
+    //     .target = b.host,
+    //     .optimize = .Debug,
+    // });
+
+    // exe.addCSourceFile(.{ .file = prog_c, .flags = &.{} });
+    // exe.linkLibC();
+
+    // b.progress
+
+    // exe.step.make() catch {
+    //     return false;
+    // };
+    // return true;
+    // TODO: once we've figured out how the fuck to actually do this with
+    // the underdocumented mess that is build.zig, do it.
+    _ = b;
+    _ = code;
+    return true;
+}
+
+fn buildConfigHostHeader(tgt: Build.ResolvedTarget, b: *Build, lib: *Step.Compile) void {
+    const opt_aq_size = b.option(u32, "nvme_aq_size", "set admin queue size") orelse 32;
+    const hdr = b.addConfigHeader(.{
+        .include_path = CONFIG_HOST,
+    }, .{
+        .NVME_AQ_SIZE = opt_aq_size,
+        .HAVE_VFIO_DEVICE_BIND_IOMMUFD = if (tgt.query.isNative())
+            cCompileCheck(b, @embedFile("chk_vfio_iommufd_support.c"))
+        else
+            (b.option(bool, "use_iommufd", "whether to use IOMMUFD API (Linux 6.4+)") orelse true),
+    });
+    lib.addConfigHeader(hdr);
+}
+
 fn buildTraceFiles(b: *Build, upstream: *Build.Dependency, lib: *Step.Compile, cflags: []const []const u8) void {
-    // Trace Files
+    // Trace Files;
     //
     // TODO: Generate from config file
     // In the meson project, it defaults to using ./config/trace-events-all as input
